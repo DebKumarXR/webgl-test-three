@@ -3,7 +3,8 @@ import fs from 'fs';
 
 export default {
 
-	root: './example/',
+	//root: './example/',
+	root: './arthrex/',
 	base: '',
 	build: {
 		outDir: './bundle/',
