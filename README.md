@@ -1,5 +1,5 @@
 # webgl-test-three
-3D visualization experiment using webgl, using [three-bvh-csg](https://github.com/gkjohnson/three-bvh-csg)
+3D visualization experiment using webgl, The base project is using [three-bvh-csg](https://github.com/gkjohnson/three-bvh-csg)
 
 # Examples
 
