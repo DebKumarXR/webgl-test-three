@@ -252,22 +252,7 @@ async function init() {
 		.loadAsync( 'https://raw.githubusercontent.com/gkjohnson/3d-demo-data/main/models/stanford-bunny/bunny.glb' );
 
 	bunnyGeom = gltf.scene.children[ 0 ].geometry;
-	bunnyGeom.computeVertexNormals();
-
-	// load glb file from local
-	const loader = new GLTFLoader().setPath( './mesh/' );
-	loader.loadAsync( 'hip_femur.glb', async function ( gltf ) {
-
-		//hip = gltf.scene.children[ 0 ].geometry;
-		//hip.computeVertexNormals();
-		//femur = gltf.scene.children[ 1 ].geometry;
-		//femur.computeVertexNormals();
-		const model = gltf.scene;
-		await renderer.compileAsync( model, camera, scene );
-		scene.add( model );
-		render();
-	} );
-
+	bunnyGeom.computeVertexNormals();	
 
 	// gui
 	gui = new GUI();
@@ -460,8 +445,8 @@ function updateBrush( brush, type, complexity ) {
 			);
 			break;
 		case 'mesh':
-			//brush.geometry = bunnyGeom.clone();
-			brush.geometry = hip.clone();
+			brush.geometry = bunnyGeom.clone();
+			//brush.geometry = hip.clone();
 			break;
 
 	}
