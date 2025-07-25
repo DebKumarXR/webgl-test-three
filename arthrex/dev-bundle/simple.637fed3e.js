@@ -183,6 +183,8 @@ let bvhHelper1, bvhHelper2;
 let bunnyGeom;
 let needsUpdate = true;
 let csgEvaluator;
+let hip;
+let femur;
 const materialMap = new Map();
 init();
 async function init() {
@@ -316,9 +318,21 @@ async function init() {
     bvhHelper1.update();
     bvhHelper2.update();
     // load bunny geometry
-    const gltf = await new (0, _gltfloaderJs.GLTFLoader)().setMeshoptDecoder((0, _meshoptDecoderModuleJs.MeshoptDecoder)).loadAsync("https://raw.githubusercontent.com/gkjohnson/3d-demo-data/main/models/stanford-bunny/bunny.glb");
-    bunnyGeom = gltf.scene.children[0].geometry;
+    const gltf1 = await new (0, _gltfloaderJs.GLTFLoader)().setMeshoptDecoder((0, _meshoptDecoderModuleJs.MeshoptDecoder)).loadAsync("https://raw.githubusercontent.com/gkjohnson/3d-demo-data/main/models/stanford-bunny/bunny.glb");
+    bunnyGeom = gltf1.scene.children[0].geometry;
     bunnyGeom.computeVertexNormals();
+    // load glb file from local
+    const loader = new (0, _gltfloaderJs.GLTFLoader)().setPath("./mesh/");
+    loader.loadAsync("hip_femur.glb", async function(gltf) {
+        //hip = gltf.scene.children[ 0 ].geometry;
+        //hip.computeVertexNormals();
+        //femur = gltf.scene.children[ 1 ].geometry;
+        //femur.computeVertexNormals();
+        const model = gltf.scene;
+        await renderer.compileAsync(model, camera, scene);
+        scene.add(model);
+        render();
+    });
     // gui
     gui = new (0, _lilGuiModuleMinJs.GUI)();
     gui.add(params, "operation", {
@@ -462,7 +476,8 @@ function updateBrush(brush, type, complexity) {
             brush.geometry = new (0, _three.TorusKnotGeometry)(0.6, 0.2, Math.round((0, _three.MathUtils).lerp(16, 64, complexity)), Math.round((0, _three.MathUtils).lerp(4, 16, complexity)));
             break;
         case "mesh":
-            brush.geometry = bunnyGeom.clone();
+            //brush.geometry = bunnyGeom.clone();
+            brush.geometry = hip.clone();
             break;
     }
     brush.geometry = brush.geometry.toNonIndexed();
@@ -31918,9 +31933,17 @@ class TransformControlsGizmo extends (0, _three.Object3D) {
             ]
         };
         const gizmoRotate = {
-            // XYZE: [
-            // 	[ new Mesh( CircleGeometry( 0.5, 1 ), matGray ), null, [ 0, Math.PI / 2, 0 ]]
-            // ],
+            XYZE: [
+                [
+                    new (0, _three.Mesh)(CircleGeometry(0.5, 1), matGray),
+                    null,
+                    [
+                        0,
+                        Math.PI / 2,
+                        0
+                    ]
+                ]
+            ],
             X: [
                 [
                     new (0, _three.Mesh)(CircleGeometry(0.5, 0.5), matRed)
@@ -31947,14 +31970,44 @@ class TransformControlsGizmo extends (0, _three.Object3D) {
                         0
                     ]
                 ]
+            ],
+            E: [
+                [
+                    new (0, _three.Mesh)(CircleGeometry(0.75, 1), matYellowTransparent),
+                    null,
+                    [
+                        0,
+                        Math.PI / 2,
+                        0
+                    ]
+                ]
             ]
         };
         const helperRotate = {
+            AXIS: [
+                [
+                    new (0, _three.Line)(lineGeometry, matHelper.clone()),
+                    [
+                        -1000,
+                        0,
+                        0
+                    ],
+                    null,
+                    [
+                        1e6,
+                        1,
+                        1
+                    ],
+                    "helper"
+                ]
+            ]
         };
         const pickerRotate = {
-            // XYZE: [
-            // 	[ new Mesh( new SphereGeometry( 0.25, 10, 8 ), matInvisible ) ]
-            // ],
+            XYZE: [
+                [
+                    new (0, _three.Mesh)(new (0, _three.SphereGeometry)(0.25, 10, 8), matInvisible)
+                ]
+            ],
             X: [
                 [
                     new (0, _three.Mesh)(new (0, _three.TorusGeometry)(0.5, 0.1, 4, 24), matInvisible),
@@ -31999,6 +32052,11 @@ class TransformControlsGizmo extends (0, _three.Object3D) {
                         -Math.PI / 2
                     ]
                 ], 
+            ],
+            E: [
+                [
+                    new (0, _three.Mesh)(new (0, _three.TorusGeometry)(0.75, 0.1, 2, 24), matInvisible)
+                ]
             ]
         };
         const gizmoScale = {
