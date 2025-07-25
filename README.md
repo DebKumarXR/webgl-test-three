@@ -3,5 +3,5 @@
 
 # Examples
 
-[Test Page](https://debkumarxr.github.io/webgl-test-three/arthrex/bundle/simple.html)
+[Test Page](https://debkumarxr.github.io/webgl-test-three/poc/bundle/simple.html)
 
