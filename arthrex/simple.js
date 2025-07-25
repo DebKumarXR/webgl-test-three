@@ -252,7 +252,7 @@ async function init() {
 		.loadAsync( 'https://raw.githubusercontent.com/gkjohnson/3d-demo-data/main/models/stanford-bunny/bunny.glb' );
 
 	bunnyGeom = gltf.scene.children[ 0 ].geometry;
-	bunnyGeom.computeVertexNormals();	
+	bunnyGeom.computeVertexNormals();
 
 	// gui
 	gui = new GUI();
