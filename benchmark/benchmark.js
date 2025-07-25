@@ -44,9 +44,9 @@ suite( 'Library Comparison', () => {
 
 	} );
 
-	bench( 'arthrex-research-webgl', () => evaluator.evaluate( brush1, brush2, SUBTRACTION, result ) );
+	bench( 'webgl-test-three', () => evaluator.evaluate( brush1, brush2, SUBTRACTION, result ) );
 
-	bench( 'arthrex-research-webgl w/ rebuild',
+	bench( 'webgl-test-three w/ rebuild',
 		() => {
 
 			brush1.disposeCacheData();

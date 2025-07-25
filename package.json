@@ -1,5 +1,5 @@
 {
-  "name": "arthrex-research-webgl",
+  "name": "webgl-test-three",
   "version": "0.0.17",
   "description": "A fast, flexible, dynamic CSG implementation on top of three-mesh-bvh",
   "main": "build/index.umd.cjs",
@@ -8,10 +8,10 @@
   "types": "src/index.d.ts",
   "sideEffects": false,
   "scripts": {
-    "start": "cd arthrex && parcel serve ./*.html --dist-dir ./dev-bundle/ --no-cache --no-hmr",
-    "build-arthrex": "cd arthrex && parcel build ./*.html --dist-dir ./bundle/ --public-url . --no-cache --no-content-hash",
+    "start": "cd poc && parcel serve ./*.html --dist-dir ./dev-bundle/ --no-cache --no-hmr",
+    "build-poc": "cd poc && parcel build ./*.html --dist-dir ./bundle/ --public-url . --no-cache --no-content-hash",
     "build": "rollup -c",
-    "lint": "eslint \"./src/**/*.{js,ts}\" \"./arthrex/*.js\" && tsc -p tsconfig.json --noEmit",
+    "lint": "eslint \"./src/**/*.{js,ts}\" \"./poc/*.js\" && tsc -p tsconfig.json --noEmit",
     "benchmark": "node ./benchmark/benchmark.js",
     "test": "cd tests && jest",
     "prepublishOnly": "npm run build"
@@ -36,14 +36,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DebKumarXR/arthrex-research-webgl.git"
+    "url": "git+https://github.com/DebKumarXR/webgl-test-three.git"
   },
   "author": "Deb Kumar",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/DebKumarXR/arthrex-research-webgl/issues"
+    "url": "https://github.com/DebKumarXR/webgl-test-three/issues"
   },
-  "homepage": "https://github.com/DebKumarXR/arthrex-research-webgl#readme",
+  "homepage": "https://github.com/DebKumarXR/webgl-test-three#readme",
   "peerDependencies": {
     "three": ">=0.151.0",
     "three-mesh-bvh": ">=0.6.6"
