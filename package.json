@@ -36,14 +36,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/gkjohnson/three-bvh-csg.git"
+    "url": "git+https://github.com/DebKumarXR/arthrex-research-webgl.git"
   },
-  "author": "Garrett Johnson <garrett.kjohnson@gmail.com>",
+  "author": "Deb Kumar",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/gkjohnson/three-bvh-csg/issues"
+    "url": "https://github.com/DebKumarXR/arthrex-research-webgl/issues"
   },
-  "homepage": "https://github.com/gkjohnson/three-bvh-csg#readme",
+  "homepage": "https://github.com/DebKumarXR/arthrex-research-webgl#readme",
   "peerDependencies": {
     "three": ">=0.151.0",
     "three-mesh-bvh": ">=0.6.6"
