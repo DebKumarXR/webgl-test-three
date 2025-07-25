@@ -57,7 +57,7 @@ const params = {
 	wireframe: false,
 	displayBrushes: true,
 	displayControls: true,
-	shadows: true,
+	shadows: false,
 	vertexColors: false,
 	flatShading: false,
 	gridTexture: false,
@@ -77,13 +77,10 @@ let brush1, brush2;
 let resultObject, wireframeResult, light, originalMaterial;
 let edgesHelper, trisHelper;
 let bvhHelper1, bvhHelper2;
-let bunnyGeom;
 let needsUpdate = true;
 let csgEvaluator;
-
-let hip;
-let femur;
-
+let hipMesh;
+let femurMesh;
 const materialMap = new Map();
 
 init();
@@ -108,14 +105,14 @@ async function init() {
 
 	// lights
 	light = new DirectionalLight( 0xffffff, 3.5 );
-	light.position.set( - 1, 2, 3 );
+	light.position.set( -20, 2, 3 );
 	scene.add( light, light.target );
 	scene.add( new AmbientLight( 0xb0bec5, 0.35 ) );
 
 	// shadows
 	const shadowCam = light.shadow.camera;
-	light.castShadow = true;
-	light.shadow.mapSize.setScalar( 4096 );
+	light.castShadow = false;
+	light.shadow.mapSize.setScalar( 2048 );
 	light.shadow.bias = 1e-5;
 	light.shadow.normalBias = 1e-2;
 
@@ -125,7 +122,7 @@ async function init() {
 
 	// camera setup
 	camera = new PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 50 );
-	camera.position.set( 1, 2, 4 );
+	camera.position.set( -10, 0, 4 );
 	camera.far = 100;
 	camera.updateProjectionMatrix();
 
@@ -153,8 +150,9 @@ async function init() {
 	// initialize brushes
 	brush1 = new Brush( new BoxGeometry(), new GridMaterial() );
 	brush2 = new Brush( new BoxGeometry(), new GridMaterial() );
-	brush2.position.set( - 0.75, 0.75, 0 );
-	brush2.scale.setScalar( 0.75 );
+	//brush2.position.set( - 0.75, 0.75, 0 );
+	brush2.scale.setScalar( 0.5 );
+	brush1.scale.setScalar( 0.5 );
 
 	updateBrush( brush1, params.brush1Shape, params.brush1Complexity );
 	updateBrush( brush2, params.brush2Shape, params.brush2Complexity );
@@ -246,13 +244,21 @@ async function init() {
 	bvhHelper1.update();
 	bvhHelper2.update();
 
-	// load bunny geometry
+	// load hip geometry
 	const gltf = await new GLTFLoader()
 		.setMeshoptDecoder( MeshoptDecoder )
-		.loadAsync( 'https://raw.githubusercontent.com/gkjohnson/3d-demo-data/main/models/stanford-bunny/bunny.glb' );
+		.loadAsync( 'https://debkumarxr.github.io/webgl-test-three/poc/mesh/hip_MQ.glb' );
 
-	bunnyGeom = gltf.scene.children[ 0 ].geometry;
-	bunnyGeom.computeVertexNormals();
+	hipMesh = gltf.scene.children[ 0 ].geometry;
+	hipMesh.computeVertexNormals();
+
+	//load femur geometry
+	const femurGltf = await new GLTFLoader()
+		.setMeshoptDecoder( MeshoptDecoder )
+		.loadAsync( 'https://debkumarxr.github.io/webgl-test-three/poc/mesh/femur_MQ.glb' );
+
+	femurMesh = femurGltf.scene.children[ 0 ].geometry;
+	femurMesh.computeVertexNormals();
 
 	// gui
 	gui = new GUI();
@@ -327,13 +333,13 @@ async function init() {
 	const brush1Folder = gui.addFolder( 'brush 1' );
 	brush1Folder.add( params, 'brush1Shape', [ 'sphere', 'box', 'cylinder', 'torus', 'torus knot', 'mesh' ] ).name( 'shape' ).onChange( v => {
 
-		updateBrush( brush1, v, params.brush1Complexity );
+		updateBrush( brush1, v, params.brush1Complexity, hipMesh );
 		bvhHelper1.update();
 
 	} );
 	brush1Folder.add( params, 'brush1Complexity', 0, 2 ).name( 'complexity' ).onChange( v => {
 
-		updateBrush( brush1, params.brush1Shape, v );
+		updateBrush( brush1, params.brush1Shape, v, hipMesh);
 		bvhHelper1.update();
 
 	} );
@@ -347,13 +353,13 @@ async function init() {
 	const brush2Folder = gui.addFolder( 'brush 2' );
 	brush2Folder.add( params, 'brush2Shape', [ 'sphere', 'box', 'cylinder', 'torus', 'torus knot', 'mesh' ] ).name( 'shape' ).onChange( v => {
 
-		updateBrush( brush2, v, params.brush2Complexity );
+		updateBrush( brush2, v, params.brush2Complexity, femurMesh );
 		bvhHelper2.update();
 
 	} );
 	brush2Folder.add( params, 'brush2Complexity', 0, 2 ).name( 'complexity' ).onChange( v => {
 
-		updateBrush( brush2, params.brush2Shape, v );
+		updateBrush( brush2, params.brush2Shape, v, femurMesh );
 		bvhHelper2.update();
 
 	} );
@@ -406,7 +412,7 @@ async function init() {
 
 }
 
-function updateBrush( brush, type, complexity ) {
+function updateBrush( brush, type, complexity, mesh ) {
 
 	brush.geometry.dispose();
 	switch ( type ) {
@@ -445,8 +451,7 @@ function updateBrush( brush, type, complexity ) {
 			);
 			break;
 		case 'mesh':
-			brush.geometry = bunnyGeom.clone();
-			//brush.geometry = hip.clone();
+			brush.geometry = mesh.clone();
 			break;
 
 	}
@@ -481,9 +486,9 @@ function render() {
 
 	requestAnimationFrame( render );
 
-	brush2.scale.x = Math.max( brush2.scale.x, 0.01 );
-	brush2.scale.y = Math.max( brush2.scale.y, 0.01 );
-	brush2.scale.z = Math.max( brush2.scale.z, 0.01 );
+	//brush2.scale.x = Math.max( brush2.scale.x, 0.01 );
+	//brush2.scale.y = Math.max( brush2.scale.y, 0.01 );
+	//brush2.scale.z = Math.max( brush2.scale.z, 0.01 );
 
 	const enableDebugTelemetry = params.enableDebugTelemetry;
 	if ( needsUpdate ) {
