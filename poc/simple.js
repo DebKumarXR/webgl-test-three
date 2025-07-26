@@ -19,9 +19,11 @@ import {
 	TorusKnotGeometry,
 	BufferAttribute,
 } from 'three';
+import * as THREE from 'three';
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { DecalGeometry } from 'three/examples/jsm/geometries/DecalGeometry.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { MeshBVHVisualizer } from 'three-mesh-bvh';
@@ -69,6 +71,13 @@ const params = {
 	displayBrush1BVH: false,
 	displayBrush2BVH: false,
 
+	minScale: 10,
+	maxScale: 20,
+	rotate: true,
+	clear: function () {
+		removeDecal();
+	}
+
 };
 
 let renderer, camera, scene, gui, outputContainer;
@@ -79,9 +88,50 @@ let edgesHelper, trisHelper;
 let bvhHelper1, bvhHelper2;
 let needsUpdate = true;
 let csgEvaluator;
+// meshes
+let hipGLTF;
+let femurGLTF;
 let hipMesh;
 let femurMesh;
 const materialMap = new Map();
+
+// decals
+let decalMesh;
+let raycaster;
+let line;
+
+const intersection = {
+	intersects: false,
+	point: new THREE.Vector3(),
+	normal: new THREE.Vector3()
+};
+const mouse = new THREE.Vector2();
+const intersects = [];
+
+const textureLoader = new THREE.TextureLoader();
+const decalDiffuse = textureLoader.load( '/textures/decal/decal-diffuse.png' );
+decalDiffuse.colorSpace = THREE.SRGBColorSpace;
+const decalNormal = textureLoader.load( '/textures/decal/decal-normal.jpg' );
+
+const decalMaterial = new THREE.MeshPhongMaterial( {
+	specular: 0x444444,
+	map: decalDiffuse,
+	normalMap: decalNormal,
+	normalScale: new THREE.Vector2( 1, 1 ),
+	shininess: 30,
+	transparent: true,
+	depthTest: true,
+	depthWrite: false,
+	polygonOffset: true,
+	polygonOffsetFactor: - 4,
+	wireframe: false
+} );
+
+const decals = [];
+let mouseHelper;
+const position = new THREE.Vector3();
+const orientation = new THREE.Euler();
+const size = new THREE.Vector3( 10, 10, 10 );
 
 init();
 
@@ -95,11 +145,12 @@ async function init() {
 	renderer = new WebGLRenderer( { antialias: true } );
 	renderer.setPixelRatio( window.devicePixelRatio );
 	renderer.setSize( window.innerWidth, window.innerHeight );
+	renderer.setAnimationLoop( animate );
 	renderer.setClearColor( bgColor, 1 );
 	renderer.shadowMap.enabled = true;
 	renderer.shadowMap.type = PCFSoftShadowMap;
 	document.body.appendChild( renderer.domElement );
-
+	
 	// scene setup
 	scene = new Scene();
 
@@ -143,6 +194,8 @@ async function init() {
 	} );
 	scene.add( transformControls );
 
+
+	
 	// bunny mesh has no UVs so skip that attribute
 	csgEvaluator = new Evaluator();
 	csgEvaluator.attributes = [ 'position', 'normal' ];
@@ -245,19 +298,20 @@ async function init() {
 	bvhHelper2.update();
 
 	// load hip geometry
-	const gltf = await new GLTFLoader()
+	hipGLTF = await new GLTFLoader()
 		.setMeshoptDecoder( MeshoptDecoder )
 		.loadAsync( 'https://debkumarxr.github.io/webgl-test-three/poc/mesh/hip_MQ.glb' );
 
-	hipMesh = gltf.scene.children[ 0 ].geometry;
+	hipMesh = hipGLTF.scene.children[ 0 ].geometry;
 	hipMesh.computeVertexNormals();
 
+
 	//load femur geometry
-	const femurGltf = await new GLTFLoader()
+	femurGLTF = await new GLTFLoader()
 		.setMeshoptDecoder( MeshoptDecoder )
 		.loadAsync( 'https://debkumarxr.github.io/webgl-test-three/poc/mesh/femur_MQ.glb' );
 
-	femurMesh = femurGltf.scene.children[ 0 ].geometry;
+	femurMesh = femurGLTF.scene.children[ 0 ].geometry;
 	femurMesh.computeVertexNormals();
 
 	// gui
@@ -408,6 +462,12 @@ async function init() {
 
 	} );
 
+	gui.add( params, 'minScale', 1, 30 );
+	gui.add( params, 'maxScale', 1, 30 );
+	gui.add( params, 'rotate' );
+	gui.add( params, 'clear' );
+	initDecal();
+
 	render();
 
 }
@@ -526,6 +586,32 @@ function render() {
 			] );
 
 		}
+		// // get vertex positions of hip mesh
+		// if ( testMesh === undefined ) return;
+		// const positionsHip = testMesh.geometry.attributes.position;
+		// //convert object to world space
+		// positionsHip.applyMatrix4( testMesh.matrixWorld );
+		// //print vertex positions
+		// console.log( 'hip mesh vertex positions:', positionsHip.array );
+
+		// for ( let i = 0; i < 5; i++ ) {
+		// 	const position = new THREE.Vector3().fromBufferAttribute( positionsHip, i );
+		// 	// add decal at position
+		// 	addDecal( position );
+		// }
+
+		// const positions = resultObject.geometry.attributes.position;
+		// //convert object to world space
+		// positions.applyMatrix4( resultObject.matrixWorld );
+		// //print vertex positions
+		// console.log( 'result object vertex positions:', positions.array );
+
+		// // add decals for 5 vertices positions
+		// for ( let i = 0; i < 5; i++ ) {
+		// 	const position = new THREE.Vector3().fromBufferAttribute( positions, i );
+		// 	// add decal at position
+		// 	addDecal( position );
+		// }
 
 	}
 
@@ -574,9 +660,195 @@ function render() {
 	bvhHelper1.visible = params.displayBrush1BVH;
 	bvhHelper2.visible = params.displayBrush2BVH;
 
-	renderer.render( scene, camera );
+	//renderer.render( scene, camera );
 
 }
 
+// init decal
+function initDecal() {
+	
+	const geometry = new THREE.BufferGeometry();
+	geometry.setFromPoints( [ new THREE.Vector3(), new THREE.Vector3() ] );
+
+	line = new THREE.Line( geometry, new THREE.LineBasicMaterial() );
+	scene.add( line );
+
+	loadSourceMesh();
+
+	raycaster = new THREE.Raycaster();
+
+	mouseHelper = new THREE.Mesh( new THREE.BoxGeometry( 1, 1, 10 ), new THREE.MeshNormalMaterial() );
+	mouseHelper.visible = false;
+	scene.add( mouseHelper );
+
+	window.addEventListener( 'resize', onWindowResize );
+
+	let moved = false;
+
+	controls.addEventListener( 'change', function () {
+
+		moved = true;
+
+	} );
+
+	window.addEventListener( 'pointerdown', function () {
+
+		moved = false;
+
+	} );
+
+	window.addEventListener( 'pointerup', function ( event ) {
+
+		if ( moved === false ) {
+
+			checkIntersection( event.clientX, event.clientY );
+
+			if ( intersection.intersects ) addDecal();
+
+		}
+
+	} );
+
+	window.addEventListener( 'pointermove', onPointerMove );
+
+	function onPointerMove( event ) {
+
+		if ( event.isPrimary ) {
+
+			checkIntersection( event.clientX, event.clientY );
+
+		}
+
+	}
+
+}
+
+function checkIntersection( x, y ) {
+
+	if ( decalMesh === undefined ) return;
+
+	mouse.x = ( x / window.innerWidth ) * 2 - 1;
+	mouse.y = - ( y / window.innerHeight ) * 2 + 1;
+
+	raycaster.setFromCamera( mouse, camera );
+	raycaster.intersectObject( decalMesh, false, intersects );
+
+	if ( intersects.length > 0 ) {
+
+		const p = intersects[ 0 ].point;
+		mouseHelper.position.copy( p );
+		intersection.point.copy( p );
+
+		const normalMatrix = new THREE.Matrix3().getNormalMatrix( decalMesh.matrixWorld );
+
+		const n = intersects[ 0 ].face.normal.clone();
+		n.applyNormalMatrix( normalMatrix );
+		n.multiplyScalar( 10 );
+		n.add( intersects[ 0 ].point );
+
+		intersection.normal.copy( intersects[ 0 ].face.normal );
+		mouseHelper.lookAt( n );
+
+		const positions = line.geometry.attributes.position;
+		positions.setXYZ( 0, p.x, p.y, p.z );
+		positions.setXYZ( 1, n.x, n.y, n.z );
+		positions.needsUpdate = true;
+
+		intersection.intersects = true;
+
+		intersects.length = 0;
+
+	} else {
+
+		intersection.intersects = false;
+
+	}
+
+}
+// load glb source mesh
+async function loadSourceMesh() {
+	
+	const loader = new GLTFLoader();
+
+	loader.load( '/mesh/hip.glb', function ( gltf ) {
+
+		decalMesh = gltf.scene.children[ 0 ];
+		decalMesh.material = new THREE.MeshPhongMaterial( {
+			specular: 0x111111,
+			color: 0xaaaaaa,			
+			shininess: 25
+		} );
+
+		scene.add( decalMesh );
+		decalMesh.scale.multiplyScalar( 10 );
+
+		// scle down to fit the hip mesh
+		decalMesh.scale.set( 0.5, 0.5, 0.5 );
+
+		//change position to the hip mesh
+		decalMesh.position.set( 0, 10, 0 );
+
+	} );
+
+}
+
+// function for adding decal on the hip mesh
+function addDecal() {	
+
+	position.copy( intersection.point );
+	orientation.copy( mouseHelper.rotation );
+
+	if ( params.rotate ) orientation.z = Math.random() * 2 * Math.PI;
+
+	const scale = params.minScale + Math.random() * ( params.maxScale - params.minScale );
+	size.set( scale, scale, scale );
+
+	const material = decalMaterial.clone();
+	material.color.setHex( Math.random() * 0xffffff );
+
+	const m = new THREE.Mesh( new DecalGeometry( decalMesh, position, orientation, size ), material );
+	m.renderOrder = decals.length; // give decals a fixed render order
+
+	decals.push( m );
+
+	decalMesh.attach( m );
+
+	// if(testMesh === undefined) return;
+
+	// const orientation = new THREE.Euler( Math.PI / 2, 0, 0 ); // rotate decal to face up
+	// const size = new THREE.Vector3( 5, 5, 5 ); // size of the decal
+
+	// const material = decalMaterial.clone();
+	// material.color.setHex( Math.random() * 0xffffff );
+	// const m = new THREE.Mesh( new DecalGeometry( testMesh, position, orientation, size ), material );
+	// m.renderOrder = decals.length; // give decals a fixed render order
+
+	// decals.push( m );
+	// testMesh.attach( m );
+}
+
+// remove decal from the hip mesh
+function removeDecal() {
+	decals.forEach( function ( d ) {
+		decalMesh.remove( d );
+	} );
+	decals.length = 0;
+}
+
+function onWindowResize() {
+
+	camera.aspect = window.innerWidth / window.innerHeight;
+	camera.updateProjectionMatrix();
+
+	renderer.setSize( window.innerWidth, window.innerHeight );
+
+}
+function animate() {
+
+	renderer.render( scene, camera );
+
+//	stats.update();
+
+}
 
 
